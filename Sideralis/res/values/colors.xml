@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+<color name="background_color">#F555</color>
+<color name="marker_color">#AFFF</color>
+<color name="text_color">#AFFF</color>
+<color name="star_color_base">#FFFFFFFF</color>
+<color name="star_color_inc">#00303030</color>
+<color name="constellation_color">#FF8C8C8C</color>
+
+<color name="messier_color">#FFFFFF00</color>
+</resources>
