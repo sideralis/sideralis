@@ -20,7 +20,7 @@ import fr.dox.sideralis.projection.sphere.SunProj;
  * Input are the catalog and position. Output is the X and Y coordinate on a virtual screen of each stars.
  * @author Bernard
  */
-public class Sky extends Thread {
+public class Sky implements Runnable {
     /** The projection (height, azimuth) of all my stars */
     private StarProj[] starsProj;
     /** The projection of the moon */
