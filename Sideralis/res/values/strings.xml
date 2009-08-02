@@ -14,4 +14,5 @@
 <string name="menu_item_setting_time">Time</string>
 <string name="menu_item_setting_position">Position</string>
 <string name="menu_item_setting_display">Display</string>
+<string name="progress_message">Calculating\nPlease wait...</string>
 </resources>
