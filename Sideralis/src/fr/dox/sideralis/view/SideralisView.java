@@ -18,7 +18,9 @@ import android.view.View;
 
 public class SideralisView extends View {
 	public static final double AOV = 45;
-	private float bearing;
+	/**
+	 * All paint objects
+	 */
 	private Paint circlePaint;
 	private String northString;
 	private String southString;
@@ -30,14 +32,15 @@ public class SideralisView extends View {
 	private Paint paintStar;
 	private Paint paintConstellations;
 	private Paint paintMessier;
-	/** The sky */
+	/** 
+	 * a reference to my sky
+	 */
 	private Sky mySky;
-	/** My position */
-//	private Position myPosition;
     /** Table to store x and y position on screen of stars */
     private ScreenCoord[] screenCoordStar;
     /** The projection use to convert azimuth and height to a plan (x & y) */
     private Zenith projection;
+    
     private int starBaseColor,starIncColor;
 	private ScreenCoord[] screenCoordMessier;
     
@@ -106,7 +109,6 @@ public class SideralisView extends View {
         paintMessier.setColor(r.getColor(R.color.messier_color));
 
 		// Create Sideralis object
-//        myPosition = ((Sideralis)this.getContext()).getMyPosition();
         mySky = ((Sideralis)this.getContext()).getMySky();
         
 		screenCoordMessier = new ScreenCoord[mySky.getNumberOfMessierObjects()];
@@ -123,8 +125,8 @@ public class SideralisView extends View {
 		int measureWidth = measure(widthMeasureSpec);
 		int measureHeight = measure(heightMeasureSpec);
 		
-		int d = Math.min(measureWidth,measureHeight);
-		setMeasuredDimension(d,d);
+//		int d = Math.min(measureWidth,measureHeight);
+		setMeasuredDimension(measureWidth,measureHeight);
 	}
 	/**
 	 * 
@@ -163,7 +165,7 @@ public class SideralisView extends View {
 		
 		// Rotate our perspective so that the top is facing the current bearing
 		canvas.save();
-		canvas.rotate(-bearing,px,py);
+		canvas.rotate(0,px,py);
 		
 		int textWidth = (int)textPaint.measureText("W");
 		int cardinalX = px - textWidth/2;
@@ -299,6 +301,7 @@ public class SideralisView extends View {
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
 		return super.onTouchEvent(event);
+		
 	}
     
 }
