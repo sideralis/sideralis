@@ -1,9 +1,12 @@
 package fr.dox.sideralis;
 
 import java.util.Calendar;
+import java.util.Date;
+import java.util.GregorianCalendar;
 
 import fr.dox.sideralis.data.Sky;
 import fr.dox.sideralis.location.Position;
+import fr.dox.sideralis.view.SideralisView;
 import android.app.Activity;
 import android.app.DatePickerDialog;
 import android.app.Dialog;
@@ -21,9 +24,11 @@ import android.os.Message;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.SubMenu;
+import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.DatePicker;
+import android.widget.LinearLayout;
 import android.widget.TimePicker;
 
 /**
@@ -54,8 +59,17 @@ public class Sideralis extends Activity {
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		System.out.println("Sideralis: onCreate");
-
+		
+		// Create a position object
 		myPosition = new Position();
+
+		// Get settings
+		SharedPreferences myPref = getSharedPreferences("Settings", Activity.MODE_PRIVATE);
+		myPosition.setLongitude(new Double(myPref.getString("Longitude", "0")));
+		myPosition.setLatitude(new Double(myPref.getString("Latitude", "0")));
+		myPosition.getTemps().setTimeOffset(myPref.getLong("TimeOffset", 0L));
+		
+		// Create the full sky
 		mySky = new Sky(myPosition, handler);
 
 		showDialog(PROGRESS_DIALOG);
@@ -210,9 +224,16 @@ public class Sideralis extends Activity {
 			datePickerCallBack = new DatePickerDialog.OnDateSetListener() {
 				@Override
 				public void onDateSet(DatePicker view, int year, int monthOfYear, int dayOfMonth) {
-					myPosition.getTemps().getDate().set(Calendar.YEAR, year);
-					myPosition.getTemps().getDate().set(Calendar.MONDAY, monthOfYear);
-					myPosition.getTemps().getDate().set(Calendar.DAY_OF_MONTH, dayOfMonth);
+					GregorianCalendar gC = new GregorianCalendar();
+					gC.set(year, monthOfYear, dayOfMonth);
+					myPosition.getTemps().calculateTimeOffset(gC);
+					
+					SharedPreferences myPref = getSharedPreferences("Settings", Context.MODE_PRIVATE);
+					SharedPreferences.Editor e = myPref.edit();
+					e.putLong("TimeOffset", myPosition.getTemps().getTimeOffset());
+					e.commit();
+					
+					calculateAndDisplay();					
 				}
 			};
 
@@ -226,8 +247,17 @@ public class Sideralis extends Activity {
 
 				@Override
 				public void onTimeSet(TimePicker view, int hourOfDay, int minute) {
-					myPosition.getTemps().getDate().set(Calendar.HOUR_OF_DAY, hourOfDay);
-					myPosition.getTemps().getDate().set(Calendar.MINUTE, minute);
+					GregorianCalendar gC = new GregorianCalendar();
+					gC.set(GregorianCalendar.HOUR_OF_DAY, hourOfDay);
+					gC.set(GregorianCalendar.MINUTE, minute);
+					myPosition.getTemps().calculateTimeOffset(gC);
+
+					SharedPreferences myPref = getSharedPreferences("Settings", Context.MODE_PRIVATE);
+					SharedPreferences.Editor e = myPref.edit();
+					e.putLong("TimeOffset", myPosition.getTemps().getTimeOffset());
+					e.commit();
+					
+					calculateAndDisplay();					
 				}
 			};
 			tpDialog = new TimePickerDialog(this, timePickerCallBack, myPosition.getTemps().getDate().get(Calendar.HOUR_OF_DAY), myPosition.getTemps().getDate().get(Calendar.MINUTE), true);
@@ -270,15 +300,20 @@ public class Sideralis extends Activity {
 				SharedPreferences myPref = getSharedPreferences("Settings", Activity.MODE_PRIVATE);
 				myPosition.setLongitude(new Double(myPref.getString("Longitude", "0")));
 				myPosition.setLatitude(new Double(myPref.getString("Latitude", "0")));
-				progressDialog.setProgress(0);
-				showDialog(PROGRESS_DIALOG);
-				Thread thread = new Thread(mySky);
-				thread.start();
+				calculateAndDisplay();
 			}
 			break;
 		}
 	}
-
+	/**
+	 * 
+	 */
+	private void calculateAndDisplay() {
+		progressDialog.setProgress(0);
+		showDialog(PROGRESS_DIALOG);
+		Thread thread = new Thread(mySky);
+		thread.start();		
+	}
 	/**
 	 * @return the myPosition
 	 */
