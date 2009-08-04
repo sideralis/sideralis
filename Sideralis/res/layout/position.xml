@@ -13,7 +13,7 @@
 
 
 <TableRow android:id="@+id/TableRow05" android:layout_width="wrap_content" android:layout_height="wrap_content">
-<Button android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="OK" android:id="@+id/ButtonPositionOK"></Button>
+<Button android:layout_width="wrap_content" android:layout_height="wrap_content" android:id="@+id/ButtonPositionOK" android:text="Set"></Button>
 <Button android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Cancel" android:id="@+id/ButtonPositionCancel"></Button>
 </TableRow>
 
