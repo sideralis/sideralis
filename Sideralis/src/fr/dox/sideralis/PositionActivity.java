@@ -26,8 +26,10 @@ public class PositionActivity extends Activity {
 		final EditText lat = (EditText) findViewById(R.id.EditTextLatitude);
 		lon.setText(lonPosition);
 		lat.setText(latPosition);
-		Button b = (Button) findViewById(R.id.ButtonPositionOK); 
-		b.setOnClickListener(new View.OnClickListener() {
+		
+		// Add listener for button set
+		Button bOK = (Button) findViewById(R.id.ButtonPositionOK); 
+		bOK.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
 				String s = lon.getText().toString();
@@ -43,6 +45,18 @@ public class PositionActivity extends Activity {
 				setResult(RESULT_OK);
 				finish();
 			}
+		});
+		
+		// Add listener for button cancel
+		Button bCancel = (Button) findViewById(R.id.ButtonPositionCancel);
+		bCancel.setOnClickListener(new View.OnClickListener() {
+
+			@Override
+			public void onClick(View v) {
+				setResult(RESULT_CANCELED);
+				finish();
+			}
+			
 		});
 
 	}
