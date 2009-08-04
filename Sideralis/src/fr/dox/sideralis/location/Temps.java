@@ -2,6 +2,7 @@ package fr.dox.sideralis.location;
 
 import java.util.Calendar;
 import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.TimeZone;
 
 
@@ -108,12 +109,11 @@ public class Temps {
      * Calculate the time offset between current time and requested time
      * @param d the requested time.
      */
-    public void calculateTimeOffset(Date d) {
+    public void calculateTimeOffset(GregorianCalendar gC) {
         myDate = Calendar.getInstance(TimeZone.getTimeZone("GMT"));
         Date date = myDate.getTime();
         long lDate = date.getTime();
-        offsetTime = d.getTime()-lDate;
-        //System.out.println("Time offset: "+offsetTime);                         // DBG
+        offsetTime = gC.getTimeInMillis()-lDate;
     }
     /**
      * Calculate date and time according to time offset and current date and time.
@@ -129,13 +129,12 @@ public class Temps {
     }
     /**
      * Calculates the Jour Julien
-     * TODO: replace by Time package where Jour Julien is automatically calculated
      */
     public void calculateJourJulien() {
         int A,B,C,D;
         int year,month;
         double hour;
-
+        
         // Calcul du jour julien
         year = myDate.get(Calendar.YEAR);
         month = myDate.get(Calendar.MONTH)+12-Calendar.DECEMBER;                // returned values is starting from 0
