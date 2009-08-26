@@ -12,70 +12,71 @@ public class MathFunctions {
      * @return the radian angle corresponding to the inverse sin of z.
      */
     public static double arcsin(double z) {
-        int k,i;
-        int N = 20;                             // This number determines the precision, higher it is, higher the precision is.
-        double res,tmp1,tmp2,tmp3;
-        
-        res = 0;
-        if (Math.abs(z)<=0.5) {
-            // k= 0
-            tmp3 = 1;
-            tmp1 = tmp3;
-            tmp2 = z;
-            tmp1 *= tmp2;
-            res += tmp1;
-            // = sum(k=0 a n) de (produit de j=0 a k-1 de (0.5+j))*z exp 2k+1) div (k! * 2k+1)
-            for (k=1;k<N;k++) {
-                tmp3 *= (0.5+k-1);
-                tmp1 = tmp3;
-                tmp2 = 1;
-                for (i=0;i<2*k+1;i++)
-                    tmp2 *= z;
-                tmp1 *= tmp2;
-                tmp1 /= (2*k+1);
-                tmp1 /= fact(k);
-                
-                res += tmp1;
-            }
-        } else if (z>0.5) {
-            // k = 0
-            tmp3 = 1;
-            tmp1 = tmp3;
-            tmp2 = 1;
-            res += tmp1;
-            // = (Pi/2-Racine de 2*racine de 1-z)*Sum(k=0 a N) de (produit de j=0 a k-1 de (0.5+j))*(1-z) exp k) div (2exp k * k! * 2k+1)
-            for (k=1;k<N;k++) {
-                tmp3 *= (0.5 + k-1);
-                tmp1 = tmp3;
-                tmp2 = 1;
-                for (i=0;i<k;i++)
-                    tmp2 *= ((1-z)/2);
-                tmp1 *= tmp2;
-                tmp1 /= (2*k+1);
-                tmp1 /= fact(k);
-                
-                res += tmp1;
-            }
-            res *= Math.sqrt(2)*Math.sqrt(1-z);
-            res = Math.PI/2 - res;
-        } else {
-            // = (-Pi/2 + Racine de 2*racine de z+1)*Sum(k=0 a N) de (produit de j=0 a k-1 de (0.5+j))*(z+1) exp k) div (2exp k * k! * 2k+1)
-            for (k=0;k<N;k++) {
-                tmp1 = PochHammer(0.5,k);
-                tmp2 = 1;
-                for (i=0;i<k;i++)
-                    tmp2 *= ((z+1)/2);
-                tmp1 *= tmp2;
-                tmp1 /= (2*k+1);
-                tmp1 /= fact(k);
-                
-                res += tmp1;
-            }
-            res *= Math.sqrt(2)*Math.sqrt(z+1);
-            res = res - Math.PI/2;
-        }
-        
-        return res;
+//        int k,i;
+//        int N = 20;                             // This number determines the precision, higher it is, higher the precision is.
+//        double res,tmp1,tmp2,tmp3;
+//        
+//        res = 0;
+//        if (Math.abs(z)<=0.5) {
+//            // k= 0
+//            tmp3 = 1;
+//            tmp1 = tmp3;
+//            tmp2 = z;
+//            tmp1 *= tmp2;
+//            res += tmp1;
+//            // = sum(k=0 a n) de (produit de j=0 a k-1 de (0.5+j))*z exp 2k+1) div (k! * 2k+1)
+//            for (k=1;k<N;k++) {
+//                tmp3 *= (0.5+k-1);
+//                tmp1 = tmp3;
+//                tmp2 = 1;
+//                for (i=0;i<2*k+1;i++)
+//                    tmp2 *= z;
+//                tmp1 *= tmp2;
+//                tmp1 /= (2*k+1);
+//                tmp1 /= fact(k);
+//                
+//                res += tmp1;
+//            }
+//        } else if (z>0.5) {
+//            // k = 0
+//            tmp3 = 1;
+//            tmp1 = tmp3;
+//            tmp2 = 1;
+//            res += tmp1;
+//            // = (Pi/2-Racine de 2*racine de 1-z)*Sum(k=0 a N) de (produit de j=0 a k-1 de (0.5+j))*(1-z) exp k) div (2exp k * k! * 2k+1)
+//            for (k=1;k<N;k++) {
+//                tmp3 *= (0.5 + k-1);
+//                tmp1 = tmp3;
+//                tmp2 = 1;
+//                for (i=0;i<k;i++)
+//                    tmp2 *= ((1-z)/2);
+//                tmp1 *= tmp2;
+//                tmp1 /= (2*k+1);
+//                tmp1 /= fact(k);
+//                
+//                res += tmp1;
+//            }
+//            res *= Math.sqrt(2)*Math.sqrt(1-z);
+//            res = Math.PI/2 - res;
+//        } else {
+//            // = (-Pi/2 + Racine de 2*racine de z+1)*Sum(k=0 a N) de (produit de j=0 a k-1 de (0.5+j))*(z+1) exp k) div (2exp k * k! * 2k+1)
+//            for (k=0;k<N;k++) {
+//                tmp1 = PochHammer(0.5,k);
+//                tmp2 = 1;
+//                for (i=0;i<k;i++)
+//                    tmp2 *= ((z+1)/2);
+//                tmp1 *= tmp2;
+//                tmp1 /= (2*k+1);
+//                tmp1 /= fact(k);
+//                
+//                res += tmp1;
+//            }
+//            res *= Math.sqrt(2)*Math.sqrt(z+1);
+//            res = res - Math.PI/2;
+//        }
+//        
+//        return res;
+    	return Math.asin(z);
     }
     /** 
      * Function inverse tangent
@@ -84,50 +85,51 @@ public class MathFunctions {
      * @return the arctan value of z in radian
      */
     public static double arctan(double z,boolean signN) {
-        int k;
-        int N = 40;                                 // This number determines the precision, higher it is, higher the precision is.
-        double res;
-        double tmp;
-        
-        if (Math.abs(z)>0.92)
-            N *= 2;
-        if (Math.abs(z)>0.94)
-            N += N/2;
-        if (Math.abs(z)>0.96)
-            N += N/2;
-        if (Math.abs(z)>0.98)
-            N *= 2;
-        
-        if (Math.abs(z) < 1) {
-            // Sum de k=0 a N de [(-1) exp k * z exp (2k+1) / (2k+1)]
-            res = tmp = z;
-            for (k=1;k<N;k++) {
-                tmp *= z*z;
-                if ((k%2) == 0)
-                    res += tmp/(2*k+1);
-                else
-                    res -= tmp/(2*k+1);
-            }
-        } else {
-            res = Math.PI * z / 2 / Math.abs(z) - 1/z;
-            tmp = 1/z;
-            for (k=1;k<N;k++) {
-                tmp /= (z*z);
-                if ((k%2) == 0)
-                    res -= tmp/(2*k+1);
-                else
-                    res += tmp/(2*k+1);
-            }
-        }
-        
-        if (signN == true && z>=0)
-            res += 0;
+    	double res;
+//        int k;
+//        int N = 40;                                 // This number determines the precision, higher it is, higher the precision is.
+//        double tmp;
+//        
+//        if (Math.abs(z)>0.92)
+//            N *= 2;
+//        if (Math.abs(z)>0.94)
+//            N += N/2;
+//        if (Math.abs(z)>0.96)
+//            N += N/2;
+//        if (Math.abs(z)>0.98)
+//            N *= 2;
+//        
+//        if (Math.abs(z) < 1) {
+//            // Sum de k=0 a N de [(-1) exp k * z exp (2k+1) / (2k+1)]
+//            res = tmp = z;
+//            for (k=1;k<N;k++) {
+//                tmp *= z*z;
+//                if ((k%2) == 0)
+//                    res += tmp/(2*k+1);
+//                else
+//                    res -= tmp/(2*k+1);
+//            }
+//        } else {
+//            res = Math.PI * z / 2 / Math.abs(z) - 1/z;
+//            tmp = 1/z;
+//            for (k=1;k<N;k++) {
+//                tmp /= (z*z);
+//                if ((k%2) == 0)
+//                    res -= tmp/(2*k+1);
+//                else
+//                    res += tmp/(2*k+1);
+//            }
+//        }
+        res = Math.atan(z);
+//        if (signN == true && z>=0)
+//            res += 0;
         if (signN == false && z>=0)
             res += Math.PI;
         if (signN == true && z<0)
             res += Math.PI;
-        if (signN == false && z<0)
-            res += 0;
+//        if (signN == false && z<0)
+//            res += 0;
+        
         return res;
     }
     /**
@@ -183,21 +185,7 @@ public class MathFunctions {
             res += " ("+(int)val+"."+val2+"h)";
         return res;
     }
-    
-    public static double ln(double z) {
-        double res;
-        int N=60;
-        double tmp = z-1;
-        
-        res = z-1;
-        for (int i=2;i<N;i+=2) {
-            tmp *= (z-1);
-            res -= tmp/i;
-            tmp *= (z-1);
-            res += tmp/(i+1);
-        }
-        return res;
-    }
+
     /** 
      * Conversion from ua to billion of km
      */
