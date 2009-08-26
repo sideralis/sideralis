@@ -30,7 +30,7 @@ public class Sky implements Runnable {
     /** The projection of planets */
     private PlanetProj mercuryProj,venusProj,marsProj,jupiterProj,saturnProj;
     /** The Messier objects */
-    private MessierProj[] myMessierCatalog;
+    private MessierProj[] messierProj;
     
     /** The constellations */
     private ConstellationCatalog myConstellations;
@@ -124,9 +124,9 @@ public class Sky implements Runnable {
     	sendProgress(7);
 
         // Create the messier objects
-        myMessierCatalog = new MessierProj[MessierCatalog.getNumberOfObjects()];
-        for (int i=0;i<myMessierCatalog.length;i++) {
-            myMessierCatalog[i] = new MessierProj(MessierCatalog.getObject(i), myPosition);
+        messierProj = new MessierProj[MessierCatalog.getNumberOfObjects()];
+        for (int i=0;i<messierProj.length;i++) {
+            messierProj[i] = new MessierProj(MessierCatalog.getObject(i), myPosition);
         }
     	sendProgress(9);
         
@@ -142,6 +142,7 @@ public class Sky implements Runnable {
     /**
      * Return the number of projected stars
      * @return the number of stars
+     * @deprecated
      */
     public int getNumberOfStars() {
         return starsProj.length;
@@ -149,9 +150,10 @@ public class Sky implements Runnable {
     /**
      * Return the number of Messier objects
      * @return the number of Messier objects
+     * @deprecated
      */
     public int getNumberOfMessierObjects() {
-        return myMessierCatalog.length;
+        return messierProj.length;
     }
     /**
      * Return one of the star from all stars
@@ -167,7 +169,7 @@ public class Sky implements Runnable {
      * @return the ith Messier in the Messier catalog
      */
     public MessierProj getMessier(int i) {
-        return myMessierCatalog[i];
+        return messierProj[i];
     }
     /**
      * Return a moon object
@@ -278,10 +280,10 @@ public class Sky implements Runnable {
 
         // ---------------------------------------------
         // --- Calculate position of Messier objects ---
-        for (int i=0;i<myMessierCatalog.length;i++) {
-            myMessierCatalog[i].calculate();
+        for (int i=0;i<messierProj.length;i++) {
+            messierProj[i].calculate();
             if (i%20 == 0)
-            	sendProgress(75+25*i/myMessierCatalog.length);
+            	sendProgress(75+25*i/messierProj.length);
         }
         
     	sendProgress(100);
