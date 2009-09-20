@@ -1,12 +1,9 @@
 package fr.dox.sideralis;
 
 import java.util.Calendar;
-import java.util.Date;
 import java.util.GregorianCalendar;
-
 import fr.dox.sideralis.data.Sky;
 import fr.dox.sideralis.location.Position;
-import fr.dox.sideralis.view.SideralisView;
 import android.app.Activity;
 import android.app.DatePickerDialog;
 import android.app.Dialog;
@@ -24,11 +21,9 @@ import android.os.Message;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.SubMenu;
-import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.DatePicker;
-import android.widget.LinearLayout;
 import android.widget.TimePicker;
 
 /**
@@ -53,13 +48,15 @@ public class Sideralis extends Activity {
 	public Position myPosition;
 	private Sky mySky;
 	private ProgressDialog progressDialog;
-
+	
 	/** Called when the activity is first created. */
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		System.out.println("Sideralis: onCreate");
-		
+
+        setContentView(R.layout.main);
+
 		// Create a position object
 		myPosition = new Position();
 
@@ -72,11 +69,9 @@ public class Sideralis extends Activity {
 		// Create the full sky
 		mySky = new Sky(myPosition, handler);
 
-		showDialog(PROGRESS_DIALOG);
-
 		mySky.initSky();
-		Thread thread = new Thread(mySky);
-		thread.start();
+        new Thread(mySky).start();
+		
 	}
 
 	/*
@@ -237,7 +232,7 @@ public class Sideralis extends Activity {
 				}
 			};
 
-			dpDialog = new DatePickerDialog(this, datePickerCallBack, myPosition.getTemps().getDate().get(Calendar.YEAR), myPosition.getTemps().getDate().get(Calendar.MONTH), myPosition.getTemps().getDate().get(Calendar.DAY_OF_MONTH));
+			dpDialog = new DatePickerDialog(this, datePickerCallBack, myPosition.getTemps().getCalendar().get(Calendar.YEAR), myPosition.getTemps().getCalendar().get(Calendar.MONTH), myPosition.getTemps().getCalendar().get(Calendar.DAY_OF_MONTH));
 			dpDialog.show();
 			return true;
 
@@ -260,7 +255,7 @@ public class Sideralis extends Activity {
 					calculateAndDisplay();					
 				}
 			};
-			tpDialog = new TimePickerDialog(this, timePickerCallBack, myPosition.getTemps().getDate().get(Calendar.HOUR_OF_DAY), myPosition.getTemps().getDate().get(Calendar.MINUTE), true);
+			tpDialog = new TimePickerDialog(this, timePickerCallBack, myPosition.getTemps().getCalendar().get(Calendar.HOUR_OF_DAY), myPosition.getTemps().getCalendar().get(Calendar.MINUTE), true);
 			tpDialog.show();
 			return true;
 
