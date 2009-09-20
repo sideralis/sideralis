@@ -164,7 +164,7 @@ public class Projection {
     public void calculatePrecession(double alpha,double delta) {
         double m,n,T;
         // Calculate precession
-        T = (myPosition.getTemps().getDate().get(Calendar.YEAR)-1900)/100;
+        T = (myPosition.getTemps().getCalendar().get(Calendar.YEAR)-1900)/100;
         m = 3.07234+0.00186*T;
         n = 20.0468 - 0.0085*T;
         dAlpha = m+n/15*Math.sin(Math.toRadians(alpha*15))*Math.tan(Math.toRadians(delta));
@@ -186,7 +186,7 @@ public class Projection {
         if (precession) {
             calculatePrecession(alpha,delta);
             // Modify alpha and delta values
-            T = (myPosition.getTemps().getDate().get(Calendar.YEAR)-2000);
+            T = (myPosition.getTemps().getCalendar().get(Calendar.YEAR)-2000);
             alpha += dAlpha*T/3600;                                                 // dAlpha is given in s
             delta += dDelta*T/3600;                                                 // dDelta is given in s too
         }

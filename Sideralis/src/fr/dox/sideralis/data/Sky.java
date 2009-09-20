@@ -1,5 +1,7 @@
 package fr.dox.sideralis.data;
 
+import java.util.TimerTask;
+
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -32,8 +34,6 @@ public class Sky implements Runnable {
     /** The Messier objects */
     private MessierProj[] messierProj;
     
-    /** The constellations */
-    private ConstellationCatalog myConstellations;
     /** a reference to my position and time */
     private Position myPosition;
     
@@ -53,8 +53,20 @@ public class Sky implements Runnable {
     private PlanetObject saturnObject;
     /** The Jupiter planet description */
     private PlanetObject jupiterObject;
+    
+    private PlanetObject[] planetObjects;
+    private PlanetProj[] planetProj;
+    
     /** An handler to communicate with SideralisView for the progress bar */
 	private Handler mHandler;
+	
+    public static final short MERCURY = 0;
+    public static final short VENUS = 1;
+    public static final short MARS = 2;
+    public static final short JUPITER = 3;
+    public static final short SATURN = 4;
+    public static final short NB_OF_SYSTEM_SOLAR_OBJECTS = 5;
+	
 	/**
      * Creates a new instance of Sky (so all objects in the sky)
      * @param pos the position of the user
@@ -67,17 +79,18 @@ public class Sky implements Runnable {
      * 
      */
     public void initSky() {
-
+    	int i,i1,i2;
+    	
     	sendProgress(0);
     	// Create all stars
-        starsProj = new StarProj[StarCatalog.getNumberOfStars()];
-        for (int i=0;i<starsProj.length;i++)
-            starsProj[i] = new StarProj(StarCatalog.getStar(i), myPosition);
+        starsProj = new StarProj[StarCatalogConst.getNumberOfStars()+StarCatalogMag.getNumberOfStars()];
+        for (i=i1=i2=0;i<starsProj.length;i++) {
+            if (i<StarCatalogConst.getNumberOfStars())
+                starsProj[i] = new StarProj(StarCatalogConst.getStar(i1++), myPosition);
+            else
+                starsProj[i] = new StarProj(StarCatalogMag.getStar(i2++), myPosition);
+        }
     	sendProgress(4);
-
-        // Create the constellations
-        myConstellations = new ConstellationCatalog();
-    	sendProgress(6);
 
         // Creates a moon
         moonObject = new SkyObject(0F, 0F, LocalizationSupport.getMessage("NAME_MOON"), (short)-120);
@@ -123,37 +136,29 @@ public class Sky implements Runnable {
         saturnProj = new PlanetProj(saturnObject, myPosition);
     	sendProgress(7);
 
+        // Create all solar system objects
+        planetObjects = new PlanetObject[NB_OF_SYSTEM_SOLAR_OBJECTS];
+        planetObjects[0] = mercuryObject;
+        planetObjects[1] = venusObject;
+        planetObjects[2] = marsObject;
+        planetObjects[3] = jupiterObject;
+        planetObjects[4] = saturnObject;
+
+        planetProj = new PlanetProj[NB_OF_SYSTEM_SOLAR_OBJECTS];
+        planetProj[0] = mercuryProj;
+        planetProj[1] = venusProj;
+        planetProj[2] = marsProj;
+        planetProj[3] = jupiterProj;
+        planetProj[4] = saturnProj;
+
         // Create the messier objects
         messierProj = new MessierProj[MessierCatalog.getNumberOfObjects()];
-        for (int i=0;i<messierProj.length;i++) {
+        for (i=0;i<messierProj.length;i++) {
             messierProj[i] = new MessierProj(MessierCatalog.getObject(i), myPosition);
         }
     	sendProgress(9);
         
         flagCalcul = false;    	
-    }
-    /**
-     * Return the constellations object
-     * @return the constellations object
-     */
-    public ConstellationCatalog getConstellations() {
-        return myConstellations;
-    }
-    /**
-     * Return the number of projected stars
-     * @return the number of stars
-     * @deprecated
-     */
-    public int getNumberOfStars() {
-        return starsProj.length;
-    }
-    /**
-     * Return the number of Messier objects
-     * @return the number of Messier objects
-     * @deprecated
-     */
-    public int getNumberOfMessierObjects() {
-        return messierProj.length;
     }
     /**
      * Return one of the star from all stars
@@ -164,6 +169,13 @@ public class Sky implements Runnable {
         return starsProj[i];
     }
     /**
+     * Return all stars
+     * @return a reference to the starsProj object
+     */
+    public StarProj[] getStarsProj() {
+        return starsProj;
+    }
+   /**
      * Return one of the Messier object from the catalog
      * @param i the index of the Messier object required
      * @return the ith Messier in the Messier catalog
@@ -186,39 +198,12 @@ public class Sky implements Runnable {
         return sunProj;
     }
     /**
-     * Return a planet object
-     * @return a reference to the mercure object
+     * Return a planet
+     * @param i the index of the planet (see Sky static definition)
+     * @return
      */
-    public PlanetProj getMercure() {
-        return mercuryProj;
-    }
-    /**
-     * Return a planet object
-     * @return a reference to the venus object
-     */
-    public PlanetProj getVenus() {
-        return venusProj;
-    }
-    /**
-     * Return a planet object
-     * @return a reference to the mars object
-     */
-    public PlanetProj getMars() {
-        return marsProj;
-    }
-    /**
-     * Return a planet object
-     * @return a reference to the jupiter object
-     */
-    public PlanetProj getJupiter() {
-        return jupiterProj;
-    }
-    /**
-     * Return a planet object
-     * @return a reference to the saturne object
-     */
-    public PlanetProj getSaturne() {
-        return saturnProj;
+    public PlanetProj getPlanet(int i) {
+        return planetProj[i];
     }
     /**
      * Return the flag calcul which indicates if the mobile is doing star position calculation
@@ -228,30 +213,18 @@ public class Sky implements Runnable {
         return flagCalcul;
     }
     /**
-     * 
-     * @param total
-     */
-    private void sendProgress(int total) {
-        Message msg = mHandler.obtainMessage();
-        Bundle b = new Bundle();
-        b.putInt("total", total);
-        msg.setData(b);
-        mHandler.sendMessage(msg);    	
-    }
-    /**
      * This is the thread which is called every (xx s) and which add time, calculate new time variables and calculates the star position and other objects
      */
     public void calculate() {
-    	
         flagCalcul = true;
+    	sendProgress(0);
+    	
         // ---------------------------------------------------
         // --- Recalculate global variables linked to time ---
         myPosition.getTemps().adjustDate();
         myPosition.getTemps().calculateJourJulien();
         myPosition.getTemps().calculateHS();
-        
         Projection.calculateParamSun();
-
     	sendProgress(10);
 
         // -----------------------------------
@@ -265,17 +238,16 @@ public class Sky implements Runnable {
         // ----------------------------------
         // --- Calculate position of moon ---
         moonProj.calculate();
+        
         // ---------------------------------
         // --- Calculate position of sun ---
         sunProj.calculate();
+        
         // -------------------------------------
         // --- Calculate position of planets ---
-        mercuryProj.calculate();
-        venusProj.calculate();
-        marsProj.calculate();
-        jupiterProj.calculate();
-        saturnProj.calculate();
-        
+        for (int i=0;i<planetProj.length;i++) {
+            planetProj[i].calculate();
+        }
     	sendProgress(75);
 
         // ---------------------------------------------
@@ -285,11 +257,19 @@ public class Sky implements Runnable {
             if (i%20 == 0)
             	sendProgress(75+25*i/messierProj.length);
         }
-        
     	sendProgress(100);
-
-        
         flagCalcul = false;
+    }
+    /**
+     * 
+     * @param total
+     */
+    private void sendProgress(int total) {
+        Message msg = mHandler.obtainMessage();
+        Bundle b = new Bundle();
+        b.putInt("total", total);
+        msg.setData(b);
+        mHandler.sendMessage(msg);    	
     }
     /**
      * 

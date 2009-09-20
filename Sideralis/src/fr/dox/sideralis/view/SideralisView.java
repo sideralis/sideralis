@@ -3,46 +3,46 @@ package fr.dox.sideralis.view;
 import fr.dox.sideralis.R;
 import fr.dox.sideralis.Sideralis;
 import fr.dox.sideralis.data.ConstellationCatalog;
+import fr.dox.sideralis.data.MessierCatalog;
 import fr.dox.sideralis.data.Sky;
-import fr.dox.sideralis.data.StarCatalog;
 import fr.dox.sideralis.object.ConstellationObject;
 import fr.dox.sideralis.object.ScreenCoord;
 import fr.dox.sideralis.projection.plane.Zenith;
+import fr.dox.sideralis.projection.sphere.MoonProj;
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.RectF;
 import android.util.AttributeSet;
-import android.view.MotionEvent;
-import android.view.View;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 
-public class SideralisView extends View {
-	public static final double AOV = 45;
-	/**
-	 * All paint objects
-	 */
-	private Paint circlePaint;
-	private String northString;
-	private String southString;
-	private String eastString;
-	private String westString;
-	private Paint textPaint;
-	private int textHeight;
-	private Paint markerPaint;
-	private Paint paintStar;
-	private Paint paintConstellations;
-	private Paint paintMessier;
+public class SideralisView extends SurfaceView implements SurfaceHolder.Callback {
+	
+	private SurfaceHolder holder;
+	
 	/** 
 	 * a reference to my sky
 	 */
 	private Sky mySky;
-    /** Table to store x and y position on screen of stars */
-    private ScreenCoord[] screenCoordStar;
     /** The projection use to convert azimuth and height to a plan (x & y) */
     private Zenith projection;
     
     private int starBaseColor,starIncColor;
+
+    /** Table to store x and y position on screen of stars */
+    private ScreenCoord[] screenCoordStar;
 	private ScreenCoord[] screenCoordMessier;
+    private ScreenCoord screenCoordSun;
+    private ScreenCoord screenCoordMoon;
+    private ScreenCoord[] screenCoordPlanets;
+
+    /** Default size in pixel for Moon and Sun */
+    private final short SIZE_MOON_SUN = 4;
+
+	private SideralisViewThread mySideralisViewThread;
+
     
 	/**
 	 * 
@@ -50,257 +50,419 @@ public class SideralisView extends View {
 	 */
 	public SideralisView(Context context) {
 		super(context);
-		initSideralisView();
+		holder = getHolder();
+		holder.addCallback(this);
+		mySideralisViewThread = new SideralisViewThread(context);
 	}
 	/**
 	 * 
 	 * @param context
-	 * @param attrs
-	 * @param defStyle
-	 */
-	public SideralisView(Context context, AttributeSet attrs, int defStyle) {
-		super(context, attrs, defStyle);
-		initSideralisView();
-	}
-	/**
-	 * 
-	 * @param context
-	 * @param attrs
 	 */
 	public SideralisView(Context context, AttributeSet attrs) {
-		super(context, attrs);
-		initSideralisView();
-	}
-	/**
-	 * 
-	 */
-	private void initSideralisView() {
-		setFocusable(true);
-		
-		// Create paint object
-		circlePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-		circlePaint.setColor(R.color.background_color);
-		circlePaint.setStrokeWidth(1);
-		circlePaint.setStyle(Paint.Style.FILL_AND_STROKE);
-		
-		Resources r = this.getResources();
-		northString = r.getString(R.string.north);
-		southString = r.getString(R.string.south);
-		eastString = r.getString(R.string.east);
-		westString = r.getString(R.string.west);
-		
-		textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-		textPaint.setColor(r.getColor(R.color.text_color));
-		
-		starBaseColor = r.getColor(R.color.star_color_base);
-		starIncColor = r.getColor(R.color.star_color_inc);
-		
-		textHeight = (int)textPaint.measureText("yY");
-		
-		markerPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-		markerPaint.setColor(r.getColor(R.color.marker_color));
-
-        paintStar = new Paint();
-        
-        paintConstellations = new Paint();
-        paintConstellations.setColor(r.getColor(R.color.constellation_color));
-        
-        paintMessier = new Paint();
-        paintMessier.setColor(r.getColor(R.color.messier_color));
-
-		// Create Sideralis object
-        mySky = ((Sideralis)this.getContext()).getMySky();
-        
-		screenCoordMessier = new ScreenCoord[mySky.getNumberOfMessierObjects()];
-		for (int i=0;i<mySky.getNumberOfMessierObjects();i++) 
-			screenCoordMessier[i] = new ScreenCoord();
-		screenCoordStar = new ScreenCoord[mySky.getNumberOfStars()];
-		for (int i=0;i<mySky.getNumberOfStars();i++)
-			screenCoordStar[i] = new ScreenCoord();
-		projection = new Zenith(0);
+		super(context,attrs);
+		holder = getHolder();
+		holder.addCallback(this);
+		mySideralisViewThread = new SideralisViewThread(context);
 	}
 	
-	@Override
-	protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-		int measureWidth = measure(widthMeasureSpec);
-		int measureHeight = measure(heightMeasureSpec);
-		
-//		int d = Math.min(measureWidth,measureHeight);
-		setMeasuredDimension(measureWidth,measureHeight);
-	}
-	/**
-	 * 
-	 * @param measureSpec
-	 * @return
-	 */
-	private int measure(int measureSpec) {
-		int result = 0;
-		
-		// Decode the measurement specification
-		int specMode = MeasureSpec.getMode(measureSpec);
-		int specSize = MeasureSpec.getSize(measureSpec);
-		
-		if (specMode == MeasureSpec.UNSPECIFIED) {
-			// Return a default size of 200 if no bounds are specified
-			result = 200;
-		} else {
-			// As you want to fill the available space return always the full available bounds
-			result = specSize;
-		}
-		return result;
-	}
+	public void pause() {
+		if (mySideralisViewThread != null) {
+			mySideralisViewThread.requestExitAndWait();
+			mySideralisViewThread = null;
+		}			
+	}	
 	
-	/**
-	 * 
-	 */
-	@Override
-	protected void onDraw(Canvas canvas) {
-		int px = getMeasuredWidth() /2;
-		int py = getMeasuredHeight() /2;
-		
-		int radius = Math.min(px,py);
-		
-		// Draw the background
-		canvas.drawCircle(px, py, radius, circlePaint);
-		
-		// Rotate our perspective so that the top is facing the current bearing
-		canvas.save();
-		canvas.rotate(0,px,py);
-		
-		int textWidth = (int)textPaint.measureText("W");
-		int cardinalX = px - textWidth/2;
-		int CardinalY = py - radius + textHeight;
-		
-		// Draw the marker every 15 degrees and text every 45
-		for (int i=0;i<24;i++) {
-			// Draw a marker
-			canvas.drawLine(px, py-radius, px, py-radius+10, markerPaint);
-			canvas.save();
-			canvas.translate(0, textHeight);
-			
-			// Draw the cardinal points
-			if (i%6==0) {
-				String dirString = "";
-				switch (i) {
-				case 0:
-					dirString = northString;
-					int arrowY = 2*textHeight;
-					canvas.drawLine(px,arrowY,px-5,3*textHeight,markerPaint);
-					canvas.drawLine(px,arrowY,px+5,3*textHeight,markerPaint);
-					break;
-				case 6: 
-					dirString = westString;
-					break;
-				case 12:
-					dirString  = southString;
-					break;
-				case 18:
-					dirString = eastString;
-					break;
-				}
-				canvas.drawText(dirString, cardinalX, CardinalY, textPaint);
-			} 
-			canvas.restore();
-			canvas.rotate(15,px,py);	
-		}
-		canvas.restore();
-		// Draw stars
-		project(radius,px,py);
-		drawStars(canvas);
-		drawConstellations(canvas);
-		drawMessier(canvas);
-	}
-    /**
-     * Draw stars
-     * @param canvas the Graphics object
-     */
-    private void drawStars(Canvas canvas) {
-        int nbOfStars = mySky.getNumberOfStars();
-        
-        for (int k = 0; k < nbOfStars; k++) {
-            if (screenCoordStar[k].isVisible()) {
-                // Star is above horizon
-                int mag = (int) (StarCatalog.getStar(k).getMag());
-                if (mag > 5) {
-                    mag = 5;
-                }
-                if (mag < 0) {
-                    mag = 0;
-                // Select color of star
-                }
-                int col = starBaseColor - mag * starIncColor;
-                // Represent star as a dot
-                paintStar.setColor(col);
-                canvas.drawPoint(screenCoordStar[k].x, screenCoordStar[k].y, paintStar);
-            }
-        }
-    }
-    private void drawConstellations(Canvas canvas) {
-        short kStar1 = 0;
-        short kStar2 = 0;
-        int i,  j;
-        ConstellationObject co;
-        
-        // If constellations should be displayed
-        for (i = 0; i < ConstellationCatalog.getNumberOfConstellations(); i++) {
-            co = mySky.getConstellations().getOptConstellation(i);
-            // For all constellations
-            for (j = 0; j < co.getSizeOfConstellation(); j += 2) {
-                kStar1 = co.getIdx(j);               						// Get index of stars in constellation
-                kStar2 = co.getIdx(j + 1);             						// Get index of stars in constellation
-                // Draw one part of the constellation
-                if (screenCoordStar[kStar1].isVisible() && screenCoordStar[kStar2].isVisible()) {
-                    // A line between 2 stars is displayed only if the 2 stars are visible.
-                        canvas.drawLine(screenCoordStar[kStar1].x, screenCoordStar[kStar1].y, screenCoordStar[kStar2].x, screenCoordStar[kStar2].y,paintConstellations);
-                }
-            }
-        }
-    }
-    /**
-     * Draw the Messier objects
-     * @param canvas
-     */
-    private void drawMessier(Canvas canvas) {
-        for (int k = 0; k < mySky.getNumberOfMessierObjects(); k++) {
-            if (screenCoordMessier[k].isVisible()) {
-                // Messier object is above horizon
-                 canvas.drawPoint(screenCoordMessier[k].x, screenCoordMessier[k].y,paintMessier);
-            }
-        }
-    }
     /**
      * Calculate the the x and y positions of all objects on screen
      * Used to accelerate display because calculation is not needed at each display
      */
-    public void project(int radius,int px,int py) {
-        for (int k = 0; k < mySky.getNumberOfStars(); k++) {
+    public void project() {
+        // === Stars ===
+        for (int k = 0; k < screenCoordStar.length; k++) {
             screenCoordStar[k].setVisible(false);
                 // For a zenith view
             if (mySky.getStar(k).getHeight() > 0) {
                 // Star is above horizon
                 screenCoordStar[k].setVisible(true);
-                screenCoordStar[k].x = (short) (px + projection.getX(mySky.getStar(k).getAzimuth(), mySky.getStar(k).getHeight())*radius);
-                screenCoordStar[k].y = (short) (py + projection.getY(mySky.getStar(k).getAzimuth(), mySky.getStar(k).getHeight())*radius);
+                screenCoordStar[k].x = (short)projection.getX(projection.getVirtualX(mySky.getStar(k).getAzimuth(), mySky.getStar(k).getHeight()));
+                screenCoordStar[k].y = (short)projection.getY(projection.getVirtualY(mySky.getStar(k).getAzimuth(), mySky.getStar(k).getHeight()));
             }
         }
-        
-        for (int k = 0; k < mySky.getNumberOfMessierObjects(); k++) {
+
+        // === Messiers ===
+        for (int k = 0; k < screenCoordMessier.length; k++) {
             screenCoordMessier[k].setVisible(false);
                 // For a zenith view
             if (mySky.getMessier(k).getHeight() > 0) {
                 // Star is above horizon
                 screenCoordMessier[k].setVisible(true);
-                screenCoordMessier[k].x = (short) (px + projection.getX(mySky.getMessier(k).getAzimuth(), mySky.getMessier(k).getHeight())*radius);
-                screenCoordMessier[k].y = (short) (py + projection.getY(mySky.getMessier(k).getAzimuth(), mySky.getMessier(k).getHeight())*radius);
+                screenCoordMessier[k].x = (short)projection.getX(projection.getVirtualX(mySky.getMessier(k).getAzimuth(), mySky.getMessier(k).getHeight()));
+                screenCoordMessier[k].y = (short)projection.getY(projection.getVirtualY(mySky.getMessier(k).getAzimuth(), mySky.getMessier(k).getHeight()));
+            }
+        }
+        
+        // === Sun ===
+        screenCoordSun.setVisible(false);
+        if (mySky.getSun().getHeight() > 0) {
+            screenCoordSun.setVisible(true);
+            screenCoordSun.x = (short)projection.getX(projection.getVirtualX(mySky.getSun().getAzimuth(), mySky.getSun().getHeight()));
+            screenCoordSun.y = (short)projection.getY(projection.getVirtualY(mySky.getSun().getAzimuth(), mySky.getSun().getHeight()));
+        }
+
+        // === Moon ===
+        screenCoordMoon.setVisible(false);
+        if (mySky.getSun().getHeight() > 0) {
+            screenCoordMoon.setVisible(true);
+            screenCoordMoon.x = (short)projection.getX(projection.getVirtualX(mySky.getMoon().getAzimuth(), mySky.getMoon().getHeight()));
+            screenCoordMoon.y = (short)projection.getY(projection.getVirtualY(mySky.getMoon().getAzimuth(), mySky.getMoon().getHeight()));
+        }
+
+        // === Planets ===
+        for (int k = 0; k < screenCoordPlanets.length; k++) {
+            screenCoordPlanets[k].setVisible(false);
+                // For a zenith view
+            if (mySky.getPlanet(k).getHeight() > 0) {
+                // Star is above horizon
+                screenCoordPlanets[k].setVisible(true);
+                screenCoordPlanets[k].x = (short)projection.getX(projection.getVirtualX(mySky.getPlanet(k).getAzimuth(), mySky.getPlanet(k).getHeight()));
+                screenCoordPlanets[k].y = (short)projection.getY(projection.getVirtualY(mySky.getPlanet(k).getAzimuth(), mySky.getPlanet(k).getHeight()));
             }
         }
     }
-	/* (non-Javadoc)
-	 * @see android.view.View#onTouchEvent(android.view.MotionEvent)
-	 */
 	@Override
-	public boolean onTouchEvent(MotionEvent event) {
-		return super.onTouchEvent(event);
+	public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+		if (mySideralisViewThread != null) 
+			mySideralisViewThread.onWindowsResize(width,height);
+	}
+	@Override
+	public void surfaceCreated(SurfaceHolder holder) {
+		mySideralisViewThread.start();
+			
+		
+	}
+	@Override
+	public void surfaceDestroyed(SurfaceHolder holder) {
+		pause();		
+	}
+	
+	/**
+	 * 
+	 * @author Bernard
+	 *
+	 */
+	class SideralisViewThread extends Thread {
+		private boolean run;
+		private Context mContext;
+		
+		private int mState;
+		public static final int STATE_STARTING=0;
+		public static final int STATE_RUNNING=1;
+
+	    /** Number of frames per second */
+	    private static final int MAX_CPS = 10;
+	    /** Time in millisecond between 2 frames */
+	    private static final int MS_PER_FRAME = 1000 / MAX_CPS;
+	    private int counter;
+	    private static final int COUNTER = 100;
+
+		/**
+		 * All paint objects
+		 */
+		private Paint paintStar;
+		private Paint paintConstellations;
+		private Paint paintMessier;
+		private Paint paintMoon;
+		private Paint paintSun;
+		private Paint paintHorizon;
+		private Paint paintCardinal;
+		private String northCardinalString,southCardinalString,eastCardinalString,westCardinalString;
+		private Paint[] paintPlanets;
+		private Paint paintSplash;
+
+		
+		public SideralisViewThread(Context context) {
+			super();
+			mContext = context;
+			initSideralisViewThread();
+		}
+		/**
+		 * 
+		 */
+		private void initSideralisViewThread() {
+			run = true;
+			mState = STATE_STARTING;
+			
+			Resources r = mContext.getResources();
+			// Create string
+			northCardinalString = r.getString(R.string.north);
+			southCardinalString = r.getString(R.string.south);
+			eastCardinalString = r.getString(R.string.east);
+			westCardinalString = r.getString(R.string.west);
+			
+			// Create paint object
+			paintHorizon = new Paint(Paint.ANTI_ALIAS_FLAG);
+			paintHorizon.setColor(r.getColor(R.color.horizon_color));
+			paintHorizon.setStrokeWidth(1);
+			paintHorizon.setStyle(Paint.Style.FILL_AND_STROKE);
+									
+	        paintStar = new Paint();
+			starBaseColor = r.getColor(R.color.star_color_base);
+			starIncColor = r.getColor(R.color.star_color_inc);
+	        
+	        paintConstellations = new Paint();
+	        paintConstellations.setColor(r.getColor(R.color.constellation_color));
+	        
+	        paintMessier = new Paint();
+	        paintMessier.setColor(r.getColor(R.color.messier_color));
+	        
+	        paintMoon = new Paint();
+	        paintMoon.setColor(r.getColor(R.color.moon_color));
+	        paintMoon.setStyle(Paint.Style.FILL);
+	        
+	        paintSun = new Paint();
+	        paintSun.setColor(r.getColor(R.color.sun_color));
+	        paintSun.setStyle(Paint.Style.FILL);
+	        
+	        paintPlanets = new Paint[Sky.NB_OF_SYSTEM_SOLAR_OBJECTS];
+	        for (int i=0;i<Sky.NB_OF_SYSTEM_SOLAR_OBJECTS;i++) {
+	        	paintPlanets[i] = new Paint();
+	        	paintPlanets[i].setStyle(Paint.Style.FILL);
+	        }
+	        paintPlanets[Sky.JUPITER].setColor(r.getColor(R.color.jupiter_color));
+	        paintPlanets[Sky.MERCURY].setColor(r.getColor(R.color.mercury_color));
+	        paintPlanets[Sky.MARS].setColor(r.getColor(R.color.mars_color));
+	        paintPlanets[Sky.SATURN].setColor(r.getColor(R.color.saturn_color));
+	        paintPlanets[Sky.VENUS].setColor(r.getColor(R.color.venus_color));
+	        
+	        paintSplash = new Paint();
+	        paintSplash.setColor(0xFFFF0000);
+	        
+	        paintCardinal = new Paint();
+	        paintCardinal.setColor(r.getColor(R.color.cardinal_color));
+	        paintCardinal.setTextAlign(Paint.Align.CENTER);
+
+	        // Create Sideralis object
+	        mySky = ((Sideralis)mContext).getMySky();
+	        
+			screenCoordMessier = new ScreenCoord[MessierCatalog.getNumberOfObjects()];
+			for (int i=0;i<MessierCatalog.getNumberOfObjects();i++) 
+				screenCoordMessier[i] = new ScreenCoord();
+			screenCoordStar = new ScreenCoord[mySky.getStarsProj().length];
+			for (int i=0;i<screenCoordStar.length;i++)
+				screenCoordStar[i] = new ScreenCoord();
+			
+	        screenCoordSun = new ScreenCoord();
+	        screenCoordMoon = new ScreenCoord();
+	        screenCoordPlanets = new ScreenCoord[Sky.NB_OF_SYSTEM_SOLAR_OBJECTS];
+	        for (int k=0;k<Sky.NB_OF_SYSTEM_SOLAR_OBJECTS;k++)
+	            screenCoordPlanets[k] = new ScreenCoord();
+			
+			System.out.println("measure use");
+			projection = new Zenith(getMeasuredHeight(),getMeasuredWidth());
+			
+			projection.setHeightDisplay(getMeasuredHeight());
+			projection.setWidthDisplay(getMeasuredWidth());
+			projection.setView();
+			
+			project();
+			
+		}
+		
+		@Override
+		public void run() {
+	        long cycleStartTime;
+
+	        while(run) {
+	            cycleStartTime = System.currentTimeMillis();
+	            // Check if we need to calculate position
+	            if (counter == 0) {
+	                // Yes, do it in a separate thread
+	                new Thread(mySky).start();
+	                counter = COUNTER;
+	            } else {
+	                // No, decrease counter
+	                counter--;
+	            }
+	            
+				Canvas canvas = holder.lockCanvas();
+				if (mState == STATE_RUNNING)
+					draw(canvas);
+				else if (mState == STATE_STARTING) 
+					drawSplash(canvas);
+				holder.unlockCanvasAndPost(canvas);
+	            
+				/* Thread is set to sleep if it remains some time before next frame */
+	            long timeSinceStart = (System.currentTimeMillis() - cycleStartTime);
+	            if (timeSinceStart < MS_PER_FRAME) {
+	                try {
+	                    Thread.sleep(MS_PER_FRAME - timeSinceStart);
+	                } catch (Exception e) {
+	                    e.printStackTrace();
+	                }
+	            }
+			}
+		}
+		
+		public void requestExitAndWait() {
+			run = false;
+			try {
+				join();
+			} catch (InterruptedException e) {
+				// TODO: handle exception
+			}
+		}
+		
+		public void onWindowsResize(int w,int h) {
+			projection.setHeightDisplay(h);
+			projection.setWidthDisplay(w);
+			projection.setView();
+			
+			project();
+			
+		}
+		public void drawSplash(Canvas canvas) {
+			canvas.drawText("Please wait",10F,10F,paintSplash);
+		}
+		
+		public void draw(Canvas canvas) {
+			// Draw horizon
+			drawHorizon(canvas);
+			// Draw constellations
+			drawConstellations(canvas);
+			// Draw stars
+			drawStars(canvas);
+			// Draw Messier objects
+			drawMessier(canvas);
+			// Draw Sun, Moon and planets
+			drawSystemSolarObjects(canvas);
+		
+		}
+		/**
+		 * 
+		 * @param canvas
+		 */
+		private void drawHorizon(Canvas canvas) {
+	        float x1,  y1,  x2,  y2,  x3,  y3,  x4,  y4;
+	        // Zenith view
+	        // Draw circle
+
+	        x1 = projection.getX(0);
+	        y1 = projection.getY(0);
+	        
+	        canvas.drawCircle(x1, y1, x1, paintHorizon);
+	        // Draw 'points cardinaux'
+	        double rot = -projection.getRot();
+	        x1 = projection.getX(Math.cos(rot) * .95);
+	        y1 = projection.getY(Math.sin(rot) * .95);
+	        x2 = projection.getX(Math.cos(rot + Math.PI) * .95);
+	        y2 = projection.getY(Math.sin(rot + Math.PI) * .95);
+	        x3 = projection.getX(Math.cos(rot + Math.PI / 2) * .95);
+	        y3 = projection.getY(Math.sin(rot + Math.PI / 2) * .95);
+	        x4 = projection.getX(Math.cos(rot + 3 * Math.PI / 2) * .95);
+	        y4 = projection.getY(Math.sin(rot + 3 * Math.PI / 2) * .95);
+	        canvas.drawText(westCardinalString, (int) x1, (int) y1 + paintCardinal.measureText(westCardinalString)/2 , paintCardinal);
+	        canvas.drawText(eastCardinalString, (int) x2, (int) y2 + paintCardinal.measureText(eastCardinalString)/2, paintCardinal);
+	        canvas.drawText(southCardinalString, (int) x3, (int) y3 +paintCardinal.measureText(southCardinalString)/2, paintCardinal);
+	        canvas.drawText(northCardinalString, (int) x4, (int) y4 +paintCardinal.measureText(northCardinalString)/2, paintCardinal);		
+		}
+	    /**
+	     * Draw stars
+	     * @param canvas the Graphics object
+	     */
+	    private void drawStars(Canvas canvas) {
+	        int nbOfStars = mySky.getStarsProj().length;
+	        
+	        for (int k = 0; k < nbOfStars; k++) {
+	            if (screenCoordStar[k].isVisible()) {
+	                // Star is above horizon
+	                float magf = mySky.getStar(k).getObject().getMag();
+	                int mag = (int) (magf);
+	                if (mag > 5) {
+	                    mag = 5;
+	                }
+	                if (mag < 0) {
+	                    mag = 0;
+	                // Select color of star
+	                }
+	                int col = starBaseColor - mag * starIncColor;
+	                // Represent star as a dot
+	                paintStar.setColor(col);
+	                canvas.drawPoint(screenCoordStar[k].x, screenCoordStar[k].y, paintStar);
+	            }
+	        }
+	    }
+	    private void drawConstellations(Canvas canvas) {
+	        short kStar1 = 0;
+	        short kStar2 = 0;
+	        int i,  j;
+	        ConstellationObject co;
+	        
+	        // If constellations should be displayed
+	        for (i = 0; i < ConstellationCatalog.getNumberOfConstellations(); i++) {
+	            co = ConstellationCatalog.getConstellation(i);
+	            // For all constellations
+	            for (j = 0; j < co.getSizeOfConstellation(); j += 2) {
+	                kStar1 = co.getIdx(j);               						// Get index of stars in constellation
+	                kStar2 = co.getIdx(j + 1);             						// Get index of stars in constellation
+	                // Draw one part of the constellation
+	                if (screenCoordStar[kStar1].isVisible() && screenCoordStar[kStar2].isVisible()) {
+	                    // A line between 2 stars is displayed only if the 2 stars are visible.
+	                        canvas.drawLine(screenCoordStar[kStar1].x, screenCoordStar[kStar1].y, screenCoordStar[kStar2].x, screenCoordStar[kStar2].y,paintConstellations);
+	                }
+	            }
+	        }
+	    }
+	    /**
+	     * Draw the Messier objects
+	     * @param canvas
+	     */
+	    private void drawMessier(Canvas canvas) {
+	        for (int k = 0; k < screenCoordMessier.length; k++) {
+	            if (screenCoordMessier[k].isVisible()) {
+	                // Messier object is above horizon
+	                 canvas.drawPoint(screenCoordMessier[k].x, screenCoordMessier[k].y,paintMessier);
+	            }
+	        }
+	    }
+	    /**
+	     * Draw the sun, the moon and planets from our solar system
+	     * @param canvas
+	     */
+	    private void drawSystemSolarObjects(Canvas canvas) {
+	        // -------------------------
+	        // ------ Display moon -----
+	        if (screenCoordMoon.isVisible()) {
+	            int z = (int) (projection.getZoom() * SIZE_MOON_SUN);
+	            RectF rec = new RectF(screenCoordMoon.x - z,screenCoordMoon.y - z,screenCoordMoon.x + z,screenCoordMoon.y + z);
+	            switch (mySky.getMoon().getPhase()) {
+	                case MoonProj.FIRST:
+	                	canvas.drawArc(rec,-100,200,true,paintMoon);
+	                    break;
+	                case MoonProj.LAST:
+	                	canvas.drawArc(rec,80,200,true,paintMoon);
+	                    break;
+	                case MoonProj.NEW:
+	                	canvas.drawArc(rec,0,360,true,paintMoon);
+	                    break;
+	                case MoonProj.FULL:
+	                	canvas.drawArc(rec,0,360,true,paintMoon);
+	                    break;
+	            }
+	        }
+	        // -------------------------
+	        // ------ Display sun -----
+	        if (screenCoordSun.isVisible()) {
+	            int z = (int) (projection.getZoom() * SIZE_MOON_SUN);
+	        	canvas.drawCircle(screenCoordSun.x,screenCoordSun.y,z,paintSun);
+	        }
+	        // ---------------------------
+	        // ------ Display planets -----
+	        for (int k=0;k<screenCoordPlanets.length;k++) {
+	            if (screenCoordPlanets[k].isVisible()) {
+	                canvas.drawCircle(screenCoordPlanets[k].x, screenCoordPlanets[k].y , 4, paintPlanets[k]);
+	            }
+	        }
+	    }
 		
 	}
     
