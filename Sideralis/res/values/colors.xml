@@ -1,11 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-<color name="background_color">#F555</color>
-<color name="marker_color">#AFFF</color>
-<color name="text_color">#AFFF</color>
+
+
+
 <color name="star_color_base">#FFFFFFFF</color>
 <color name="star_color_inc">#00303030</color>
 <color name="constellation_color">#FF8C8C8C</color>
 
 <color name="messier_color">#FFFFFF00</color>
+<color name="moon_color">#FFDCDCDC</color>
+<color name="sun_color">#FFFFFF00</color>
+<color name="horizon_color">#FF000020</color>
+<color name="cardinal_color">#FF7F00FF</color>
+<color name="mercury_color">#FFFF00FF</color>
+<color name="venus_color">#FF00FF00</color>
+<color name="mars_color">#FFFF0000</color>
+<color name="jupiter_color">#FFFFFF00</color>
+<color name="saturn_color">#FF00FFFF</color>
 </resources>
