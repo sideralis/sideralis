@@ -10,11 +10,17 @@ import fr.dox.sideralis.object.ScreenCoord;
 import fr.dox.sideralis.projection.plane.Zenith;
 import fr.dox.sideralis.projection.sphere.MoonProj;
 import android.content.Context;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.util.AttributeSet;
+import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
@@ -52,7 +58,7 @@ public class SideralisView extends SurfaceView implements SurfaceHolder.Callback
 		super(context);
 		holder = getHolder();
 		holder.addCallback(this);
-		mySideralisViewThread = new SideralisViewThread(context);
+		mySideralisViewThread = new SideralisViewThread(context,holder);
 	}
 	/**
 	 * 
@@ -62,7 +68,7 @@ public class SideralisView extends SurfaceView implements SurfaceHolder.Callback
 		super(context,attrs);
 		holder = getHolder();
 		holder.addCallback(this);
-		mySideralisViewThread = new SideralisViewThread(context);
+		mySideralisViewThread = new SideralisViewThread(context,holder);
 	}
 	
 	public void pause() {
@@ -70,8 +76,14 @@ public class SideralisView extends SurfaceView implements SurfaceHolder.Callback
 			mySideralisViewThread.requestExitAndWait();
 			mySideralisViewThread = null;
 		}			
-	}	
-	
+	}
+	/**
+	 * 
+	 * @param counter
+	 */
+	public void setCounter(int counter) {
+		mySideralisViewThread.setCounter(counter);
+	}
     /**
      * Calculate the the x and y positions of all objects on screen
      * Used to accelerate display because calculation is not needed at each display
@@ -145,14 +157,24 @@ public class SideralisView extends SurfaceView implements SurfaceHolder.Callback
 		pause();		
 	}
 	
+	/* (non-Javadoc)
+	 * @see android.view.View#onTouchEvent(android.view.MotionEvent)
+	 */
+	@Override
+	public boolean onTouchEvent(MotionEvent event) {
+		mySideralisViewThread.doTouchEvent(event);
+		return super.onTouchEvent(event);
+	}
+
 	/**
 	 * 
 	 * @author Bernard
-	 *
+	 * TODO add synchronized
 	 */
 	class SideralisViewThread extends Thread {
 		private boolean run;
 		private Context mContext;
+		private SurfaceHolder mHolder;
 		
 		private int mState;
 		public static final int STATE_STARTING=0;
@@ -162,8 +184,19 @@ public class SideralisView extends SurfaceView implements SurfaceHolder.Callback
 	    private static final int MAX_CPS = 10;
 	    /** Time in millisecond between 2 frames */
 	    private static final int MS_PER_FRAME = 1000 / MAX_CPS;
+	    
 	    private int counter;
 	    private static final int COUNTER = 100;
+	    
+	    private int counterSplash;
+	    private static final short COUNT0 = -15;                                             // Constant color red screen
+	    private static final short COUNT1 = 0;                                              // Decreasing color from red to black
+	    private static final short COUNT2 = 10;                                             // Constant color logo DoX
+	    private static final short COUNT3 = 25;
+	    private static final short COUNT4 = 35;
+
+	    private int canvasWidth = 1;
+	    private int canvasHeight = 1;
 
 		/**
 		 * All paint objects
@@ -176,13 +209,18 @@ public class SideralisView extends SurfaceView implements SurfaceHolder.Callback
 		private Paint paintHorizon;
 		private Paint paintCardinal;
 		private String northCardinalString,southCardinalString,eastCardinalString,westCardinalString;
+		private String pleaseWaitString;
 		private Paint[] paintPlanets;
 		private Paint paintSplash;
-
 		
-		public SideralisViewThread(Context context) {
+		private Bitmap introImg;
+		private Bitmap logoImg;
+		private String versionName;
+				
+		public SideralisViewThread(Context context,SurfaceHolder holder) {
 			super();
 			mContext = context;
+			mHolder = holder;
 			initSideralisViewThread();
 		}
 		/**
@@ -198,6 +236,16 @@ public class SideralisView extends SurfaceView implements SurfaceHolder.Callback
 			southCardinalString = r.getString(R.string.south);
 			eastCardinalString = r.getString(R.string.east);
 			westCardinalString = r.getString(R.string.west);
+			pleaseWaitString = r.getString(R.string.please_wait);
+			PackageManager pm = mContext.getPackageManager();
+			PackageInfo pi;
+			try {
+				pi = pm.getPackageInfo(mContext.getPackageName(), 0);
+				versionName = pi.versionName;
+			} catch (NameNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 			
 			// Create paint object
 			paintHorizon = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -235,7 +283,8 @@ public class SideralisView extends SurfaceView implements SurfaceHolder.Callback
 	        paintPlanets[Sky.VENUS].setColor(r.getColor(R.color.venus_color));
 	        
 	        paintSplash = new Paint();
-	        paintSplash.setColor(0xFFFF0000);
+	        paintSplash.setColor(0xFF000000);
+	        paintSplash.setTextAlign(Paint.Align.CENTER);
 	        
 	        paintCardinal = new Paint();
 	        paintCardinal.setColor(r.getColor(R.color.cardinal_color));
@@ -264,8 +313,12 @@ public class SideralisView extends SurfaceView implements SurfaceHolder.Callback
 			projection.setWidthDisplay(getMeasuredWidth());
 			projection.setView();
 			
-			project();
+			introImg = BitmapFactory.decodeResource(r, R.drawable.iya_logo);
+			logoImg = BitmapFactory.decodeResource(r, R.drawable.dox);
 			
+			counter = COUNTER;
+			counterSplash = COUNT0;
+						
 		}
 		
 		@Override
@@ -275,21 +328,23 @@ public class SideralisView extends SurfaceView implements SurfaceHolder.Callback
 	        while(run) {
 	            cycleStartTime = System.currentTimeMillis();
 	            // Check if we need to calculate position
-	            if (counter == 0) {
-	                // Yes, do it in a separate thread
-	                new Thread(mySky).start();
-	                counter = COUNTER;
-	            } else {
-	                // No, decrease counter
-	                counter--;
+	            if (mState == STATE_RUNNING) {
+		            if (counter == 0) {
+		                // Yes, do it in a separate thread
+		                new Thread(mySky).start();
+		                counter = COUNTER;
+		            } else {
+		                // No, decrease counter
+		                counter--;
+		            }
 	            }
 	            
-				Canvas canvas = holder.lockCanvas();
+				Canvas canvas = mHolder.lockCanvas();
 				if (mState == STATE_RUNNING)
 					draw(canvas);
 				else if (mState == STATE_STARTING) 
 					drawSplash(canvas);
-				holder.unlockCanvasAndPost(canvas);
+				mHolder.unlockCanvasAndPost(canvas);
 	            
 				/* Thread is set to sleep if it remains some time before next frame */
 	            long timeSinceStart = (System.currentTimeMillis() - cycleStartTime);
@@ -303,6 +358,17 @@ public class SideralisView extends SurfaceView implements SurfaceHolder.Callback
 			}
 		}
 		
+		/**
+		 * @param counter the counter to set
+		 */
+		public void setCounter(int counter) {
+			synchronized(mHolder) {
+				this.counter = counter;
+			}
+		}
+		/**
+		 * 
+		 */
 		public void requestExitAndWait() {
 			run = false;
 			try {
@@ -311,31 +377,106 @@ public class SideralisView extends SurfaceView implements SurfaceHolder.Callback
 				// TODO: handle exception
 			}
 		}
-		
+		/**
+		 * 
+		 * @param w
+		 * @param h
+		 */
 		public void onWindowsResize(int w,int h) {
-			projection.setHeightDisplay(h);
-			projection.setWidthDisplay(w);
-			projection.setView();
-			
-			project();
+			synchronized (mHolder) {
+				canvasWidth = w;
+				canvasHeight = h;
+				projection.setHeightDisplay(h);
+				projection.setWidthDisplay(w);
+				projection.setView();										
+			}
+		}
+		/**
+		 * 
+		 * @param event
+		 */
+		public void doTouchEvent(MotionEvent event) {
+			synchronized (mHolder) {
+				if (mState == STATE_RUNNING){
+					int action = event.getAction();
+					switch (action) {
+						case (MotionEvent.ACTION_MOVE):
+							
+							break;
+						case (MotionEvent.ACTION_DOWN):
+							break;
+					}
+				} else if (mySky.getProgress() == 100) {
+					mState = STATE_RUNNING;
+				}
+			}
 			
 		}
+		/**
+		 * 
+		 * @param canvas
+		 */
 		public void drawSplash(Canvas canvas) {
-			canvas.drawText("Please wait",10F,10F,paintSplash);
+	        if (counterSplash<COUNT4+10)
+	        	counterSplash++;
+	        // =================================
+	        // ====== Display intro Image ======
+	        // =================================
+	        if (counterSplash < COUNT1) {
+	        	canvas.drawARGB(0xff,166, 34, 170);
+				canvas.drawText(pleaseWaitString, canvasWidth/2, canvasHeight/2, paintSplash);
+	        } else if (counterSplash < COUNT2) {	        	
+	        	canvas.drawARGB(0xff,166 - counterSplash * 166 / COUNT2, 34 - counterSplash * 34 / COUNT2, 170 - counterSplash * 170 / COUNT2);
+				canvas.drawBitmap(logoImg, canvasWidth/2 - logoImg.getWidth()/2, canvasHeight/2-logoImg.getHeight()/2, null);
+	        } else if (counterSplash < COUNT3) {
+	        	canvas.drawARGB(0xff,0, 0, 0);
+				canvas.drawBitmap(logoImg, canvasWidth/2 - logoImg.getWidth()/2, canvasHeight/2-logoImg.getHeight()/2, null);
+	        } else if (counterSplash < COUNT4) {
+	        	canvas.drawARGB(0xff,0, 0, 0);
+				canvas.drawBitmap(introImg, canvasWidth/2 - introImg.getWidth()/2, canvasHeight/2-introImg.getHeight()/2, null);
+	            int c = counterSplash - COUNT3;
+	            c = 0xff000000+(c * 166 / (COUNT4 - COUNT3)*0x100+c * 34 / (COUNT4 - COUNT3))*0x100 + c * 170 / (COUNT4 - COUNT3); 
+	            paintSplash.setColor(c );
+				canvas.drawText("SIDERALIS", canvasWidth/2, 20, paintSplash);
+				canvas.drawText(" " + versionName, canvasWidth/2, canvasHeight-40, paintSplash);
+	        } else {
+	        	canvas.drawARGB(0xff,0, 0, 0);
+				canvas.drawBitmap(introImg, canvasWidth/2 - introImg.getWidth()/2, canvasHeight/2-introImg.getHeight()/2, null);
+				canvas.drawText("SIDERALIS", canvasWidth/2, 20, paintSplash);
+				canvas.drawText(" " + versionName, canvasWidth/2, canvasHeight-40, paintSplash);
+	        }
+			
+			
+			int p = mySky.getProgress();
+			if (p == 100 ) {
+				canvas.drawText("Press any key or touch screen",canvasWidth/2,canvasHeight-20,paintSplash);
+			}
+//			Log.d("Bernard Counter",new Integer(counterSplash).toString());
+//			Log.d("Bernard Progress",new Integer(p).toString());
+
 		}
 		
 		public void draw(Canvas canvas) {
-			// Draw horizon
-			drawHorizon(canvas);
-			// Draw constellations
-			drawConstellations(canvas);
-			// Draw stars
-			drawStars(canvas);
-			// Draw Messier objects
-			drawMessier(canvas);
-			// Draw Sun, Moon and planets
-			drawSystemSolarObjects(canvas);
-		
+			if (mySky.isCalculationDone()) {
+	            mySky.setCalculationDone(false);
+	            mySky.setProgress(0);
+	            canvas.drawARGB(0xff,0,0,0);
+	            canvas.drawText("Wait",canvasWidth/2,canvasHeight/2,paintSplash);
+	            project();				
+			} else {
+				// Draw horizon
+				drawHorizon(canvas);
+				// Draw constellations
+				drawConstellations(canvas);
+				// Draw stars
+				drawStars(canvas);
+				// Draw Messier objects
+				drawMessier(canvas);
+				// Draw Sun, Moon and planets
+				drawSystemSolarObjects(canvas);
+				// Draw progress bar
+				canvas.drawLine(0, 0, mySky.getProgress(), 0, paintConstellations);
+			}
 		}
 		/**
 		 * 
@@ -349,7 +490,9 @@ public class SideralisView extends SurfaceView implements SurfaceHolder.Callback
 	        x1 = projection.getX(0);
 	        y1 = projection.getY(0);
 	        
+	        canvas.drawARGB(0xff0,0,0,0);
 	        canvas.drawCircle(x1, y1, x1, paintHorizon);
+	        
 	        // Draw 'points cardinaux'
 	        double rot = -projection.getRot();
 	        x1 = projection.getX(Math.cos(rot) * .95);

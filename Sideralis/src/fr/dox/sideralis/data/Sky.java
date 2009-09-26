@@ -1,10 +1,5 @@
 package fr.dox.sideralis.data;
 
-import java.util.TimerTask;
-
-import android.os.Bundle;
-import android.os.Handler;
-import android.os.Message;
 import fr.dox.sideralis.LocalizationSupport;
 import fr.dox.sideralis.location.Position;
 import fr.dox.sideralis.object.PlanetObject;
@@ -37,8 +32,6 @@ public class Sky implements Runnable {
     /** a reference to my position and time */
     private Position myPosition;
     
-    /** flag to indicate calculation on going */
-    boolean flagCalcul;
     /** The moon description */
     private SkyObject moonObject;
     /** The sun description */
@@ -56,23 +49,23 @@ public class Sky implements Runnable {
     
     private PlanetObject[] planetObjects;
     private PlanetProj[] planetProj;
-    
-    /** An handler to communicate with SideralisView for the progress bar */
-	private Handler mHandler;
-	
+
+    private boolean calculationDone;
+
     public static final short MERCURY = 0;
     public static final short VENUS = 1;
     public static final short MARS = 2;
     public static final short JUPITER = 3;
     public static final short SATURN = 4;
     public static final short NB_OF_SYSTEM_SOLAR_OBJECTS = 5;
+    
+    private int progress;
 	
 	/**
      * Creates a new instance of Sky (so all objects in the sky)
      * @param pos the position of the user
      */
-    public Sky(Position pos, Handler h) {
-    	mHandler = h;
+    public Sky(Position pos) {
         this.myPosition = pos;
     }
     /**
@@ -81,7 +74,6 @@ public class Sky implements Runnable {
     public void initSky() {
     	int i,i1,i2;
     	
-    	sendProgress(0);
     	// Create all stars
         starsProj = new StarProj[StarCatalogConst.getNumberOfStars()+StarCatalogMag.getNumberOfStars()];
         for (i=i1=i2=0;i<starsProj.length;i++) {
@@ -90,7 +82,6 @@ public class Sky implements Runnable {
             else
                 starsProj[i] = new StarProj(StarCatalogMag.getStar(i2++), myPosition);
         }
-    	sendProgress(4);
 
         // Creates a moon
         moonObject = new SkyObject(0F, 0F, LocalizationSupport.getMessage("NAME_MOON"), (short)-120);
@@ -134,7 +125,6 @@ public class Sky implements Runnable {
                 2.492519, -0.0039189, -0.00001549, 0.00000004, 338.307800, 1.0852207, 0.00097854, 0.00000992,
                 112.790414, 0.8731951, -0.00015218, -0.00000531, 175.46622, 1221.55147, -0.000502);
         saturnProj = new PlanetProj(saturnObject, myPosition);
-    	sendProgress(7);
 
         // Create all solar system objects
         planetObjects = new PlanetObject[NB_OF_SYSTEM_SOLAR_OBJECTS];
@@ -156,9 +146,6 @@ public class Sky implements Runnable {
         for (i=0;i<messierProj.length;i++) {
             messierProj[i] = new MessierProj(MessierCatalog.getObject(i), myPosition);
         }
-    	sendProgress(9);
-        
-        flagCalcul = false;    	
     }
     /**
      * Return one of the star from all stars
@@ -206,18 +193,10 @@ public class Sky implements Runnable {
         return planetProj[i];
     }
     /**
-     * Return the flag calcul which indicates if the mobile is doing star position calculation
-     * @return true if the system is doing calculation, else false
-     */
-    public boolean getFlagCalcul() {
-        return flagCalcul;
-    }
-    /**
      * This is the thread which is called every (xx s) and which add time, calculate new time variables and calculates the star position and other objects
      */
     public void calculate() {
-        flagCalcul = true;
-    	sendProgress(0);
+    	setProgress(0);
     	
         // ---------------------------------------------------
         // --- Recalculate global variables linked to time ---
@@ -225,14 +204,14 @@ public class Sky implements Runnable {
         myPosition.getTemps().calculateJourJulien();
         myPosition.getTemps().calculateHS();
         Projection.calculateParamSun();
-    	sendProgress(10);
+    	setProgress(10);
 
         // -----------------------------------
         // --- Calculate position of stars ---
         for (int i=0;i<starsProj.length;i++) {
             starsProj[i].calculate();
             if (i%100 == 0)
-            	sendProgress(10+60*i/starsProj.length);
+            	setProgress(10+60*i/starsProj.length);
         }
 
         // ----------------------------------
@@ -248,34 +227,50 @@ public class Sky implements Runnable {
         for (int i=0;i<planetProj.length;i++) {
             planetProj[i].calculate();
         }
-    	sendProgress(75);
+    	setProgress(75);
 
         // ---------------------------------------------
         // --- Calculate position of Messier objects ---
         for (int i=0;i<messierProj.length;i++) {
             messierProj[i].calculate();
             if (i%20 == 0)
-            	sendProgress(75+25*i/messierProj.length);
+            	setProgress(75+25*i/messierProj.length);
         }
-    	sendProgress(100);
-        flagCalcul = false;
+    	setProgress(100);
     }
+    
     /**
-     * 
-     * @param total
-     */
-    private void sendProgress(int total) {
-        Message msg = mHandler.obtainMessage();
-        Bundle b = new Bundle();
-        b.putInt("total", total);
-        msg.setData(b);
-        mHandler.sendMessage(msg);    	
-    }
+	 * @return the progress
+	 */
+	public int getProgress() {
+		return progress;
+	}
+	/**
+	 * @param progress the progress to set
+	 */
+	public void setProgress(int progress) {
+		this.progress = progress;
+	}
+    /**
+    *
+    * @return
+    */
+   public boolean isCalculationDone() {
+       return calculationDone;
+   }
+   /**
+    *
+    * @param calculationDone
+    */
+   public void setCalculationDone(boolean calculationDone) {
+       this.calculationDone = calculationDone;
+   }
     /**
      * 
      */
 	@Override
 	public void run() {
 		calculate();
+		calculationDone = true;
 	}
 }
