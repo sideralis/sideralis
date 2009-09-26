@@ -7,21 +7,23 @@
 		android:layout_width="fill_parent"
 		android:layout_height="fill_parent" 
 		android:clickable="true" />
-	<LinearLayout 
-		android:id="@+id/layout_zoom"
-		android:layout_width="wrap_content" 
-		android:layout_height="wrap_content"
-		android:layout_alignParentBottom="true"
-		android:layout_centerHorizontal="true">
-		<ZoomButton 
-			android:id="@+id/zoomIn" 
-			android:background="@android:drawable/btn_plus"
-			android:layout_width="wrap_content" 
-			android:layout_height="wrap_content" />
-		<ZoomButton 
-			android:id="@+id/zoomOut" 
-			android:background="@android:drawable/btn_minus"
-			android:layout_width="wrap_content" 
-			android:layout_height="wrap_content" />
-	</LinearLayout>
+ 
+<!--	<LinearLayout -->
+<!--		android:id="@+id/layout_zoom"-->
+<!--		android:layout_width="wrap_content" -->
+<!--		android:layout_height="wrap_content"-->
+<!--		android:layout_alignParentBottom="true"-->
+<!--		android:layout_centerHorizontal="true">-->
+<!--		<ZoomButton -->
+<!--			android:id="@+id/zoomIn" -->
+<!--			android:background="@android:drawable/btn_plus"-->
+<!--			android:layout_width="wrap_content" -->
+<!--			android:layout_height="wrap_content" />-->
+<!--		<ZoomButton -->
+<!--			android:id="@+id/zoomOut" -->
+<!--			android:background="@android:drawable/btn_minus"-->
+<!--			android:layout_width="wrap_content" -->
+<!--			android:layout_height="wrap_content" />-->
+<!--	</LinearLayout>-->
+
 </RelativeLayout>
