@@ -4,20 +4,17 @@ import java.util.Calendar;
 import java.util.GregorianCalendar;
 import fr.dox.sideralis.data.Sky;
 import fr.dox.sideralis.location.Position;
+import fr.dox.sideralis.view.SideralisView;
 import android.app.Activity;
 import android.app.DatePickerDialog;
 import android.app.Dialog;
-import android.app.ProgressDialog;
 import android.app.TimePickerDialog;
 import android.app.DatePickerDialog.OnDateSetListener;
 import android.app.TimePickerDialog.OnTimeSetListener;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.res.Resources;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Message;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.SubMenu;
@@ -28,11 +25,15 @@ import android.widget.TimePicker;
 
 /**
  * 
- * @author Bernard TODO: Save preferences TODO: Get position from GPS TODO:
- *         Improve display: zoom TODO: Improve display: scroll TODO: Get
- *         standard info on objects TODO: Get full info on objects: open wiki
- *         page TODO: Support for localization TODO: Add splash screen and
- *         remove progress bar
+ * @author Bernard 
+ * TODO: Save preferences 
+ * TODO: Get position from GPS 
+ * TODO: Improve display: zoom 
+ * TODO: Improve display: scroll 
+ * TODO: Get standard info on objects 
+ * TODO: Get full info on objects: open wiki page 
+ * TODO: Support for localization 
+ * TODO: Add splash screen and remove progress bar
  */
 public class Sideralis extends Activity {
 
@@ -43,11 +44,9 @@ public class Sideralis extends Activity {
 	private static final int MENU_SETTING_POSITION = Menu.FIRST + 4;
 	private static final int MENU_SETTING_DISPLAY = Menu.FIRST + 5;
 
-	private static final int PROGRESS_DIALOG = 0;
 	private static final int POSITION_ACTIVITY = 1;
 	public Position myPosition;
 	private Sky mySky;
-	private ProgressDialog progressDialog;
 	
 	/** Called when the activity is first created. */
 	@Override
@@ -55,7 +54,6 @@ public class Sideralis extends Activity {
 		super.onCreate(savedInstanceState);
 		System.out.println("Sideralis: onCreate");
 
-        setContentView(R.layout.main);
 
 		// Create a position object
 		myPosition = new Position();
@@ -67,10 +65,12 @@ public class Sideralis extends Activity {
 		myPosition.getTemps().setTimeOffset(myPref.getLong("TimeOffset", 0L));
 		
 		// Create the full sky
-		mySky = new Sky(myPosition, handler);
-
+		mySky = new Sky(myPosition);
 		mySky.initSky();
-        new Thread(mySky).start();
+
+		setContentView(R.layout.main);
+        
+		new Thread(mySky).start();
 		
 	}
 
@@ -143,37 +143,6 @@ public class Sideralis extends Activity {
 		System.out.println("Sideralis: onStop");
 	}
 
-	/**
-     * 
-     */
-	protected Dialog onCreateDialog(int id) {
-		switch (id) {
-		case PROGRESS_DIALOG:
-			progressDialog = new ProgressDialog(Sideralis.this);
-			progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
-			Resources r = getResources();
-			progressDialog.setMessage(r.getString(R.string.progress_message));
-			return progressDialog;
-		default:
-			return null;
-		}
-	}
-
-	/**
-	 * Define the Handler that receives messages from the thread and update the
-	 * progress
-	 */
-	final Handler handler = new Handler() {
-		public void handleMessage(Message msg) {
-			int total = msg.getData().getInt("total");
-			progressDialog.setProgress(total);
-			if (total >= 100) {
-				dismissDialog(PROGRESS_DIALOG);
-				setContentView(R.layout.main);
-			}
-		}
-	};
-
 	/*
 	 * (non-Javadoc)
 	 * 
@@ -227,8 +196,8 @@ public class Sideralis extends Activity {
 					SharedPreferences.Editor e = myPref.edit();
 					e.putLong("TimeOffset", myPosition.getTemps().getTimeOffset());
 					e.commit();
-					
-					calculateAndDisplay();					
+					SideralisView myView = (SideralisView) findViewById(R.id.mySideralisView);
+					myView.setCounter(0);
 				}
 			};
 
@@ -251,8 +220,8 @@ public class Sideralis extends Activity {
 					SharedPreferences.Editor e = myPref.edit();
 					e.putLong("TimeOffset", myPosition.getTemps().getTimeOffset());
 					e.commit();
-					
-					calculateAndDisplay();					
+					SideralisView myView = (SideralisView) findViewById(R.id.mySideralisView);
+					myView.setCounter(0);
 				}
 			};
 			tpDialog = new TimePickerDialog(this, timePickerCallBack, myPosition.getTemps().getCalendar().get(Calendar.HOUR_OF_DAY), myPosition.getTemps().getCalendar().get(Calendar.MINUTE), true);
@@ -295,19 +264,11 @@ public class Sideralis extends Activity {
 				SharedPreferences myPref = getSharedPreferences("Settings", Activity.MODE_PRIVATE);
 				myPosition.setLongitude(new Double(myPref.getString("Longitude", "0")));
 				myPosition.setLatitude(new Double(myPref.getString("Latitude", "0")));
-				calculateAndDisplay();
+				SideralisView myView = (SideralisView) findViewById(R.id.mySideralisView);
+				myView.setCounter(0);
 			}
 			break;
 		}
-	}
-	/**
-	 * 
-	 */
-	private void calculateAndDisplay() {
-		progressDialog.setProgress(0);
-		showDialog(PROGRESS_DIALOG);
-		Thread thread = new Thread(mySky);
-		thread.start();		
 	}
 	/**
 	 * @return the myPosition
