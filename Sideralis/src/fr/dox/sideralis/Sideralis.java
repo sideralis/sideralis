@@ -2,9 +2,14 @@ package fr.dox.sideralis;
 
 import java.util.Calendar;
 import java.util.GregorianCalendar;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.Vector;
+
 import fr.dox.sideralis.data.Sky;
 import fr.dox.sideralis.location.Position;
 import fr.dox.sideralis.view.SideralisView;
+import fr.dox.sideralis.view.SideralisView.SideralisViewThread;
 import android.app.Activity;
 import android.app.DatePickerDialog;
 import android.app.Dialog;
@@ -15,13 +20,24 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.SubMenu;
+import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.view.View.OnClickListener;
+import android.view.View.OnTouchListener;
+import android.view.animation.AlphaAnimation;
+import android.view.animation.Animation;
+import android.view.animation.AnimationSet;
+import android.view.animation.AnimationUtils;
 import android.widget.DatePicker;
 import android.widget.TimePicker;
+import android.widget.ZoomButton;
+
 
 /**
  * 
@@ -35,7 +51,7 @@ import android.widget.TimePicker;
  * TODO: Support for localization 
  * TODO: Add splash screen and remove progress bar
  */
-public class Sideralis extends Activity {
+public class Sideralis extends Activity implements OnClickListener, OnTouchListener {
 
 	private static final int MENU_SETTINGS = Menu.FIRST;
 	private static final int MENU_ABOUT = Menu.FIRST + 1;
@@ -47,6 +63,27 @@ public class Sideralis extends Activity {
 	private static final int POSITION_ACTIVITY = 1;
 	public Position myPosition;
 	private Sky mySky;
+	private Timer timeOut;
+	private boolean timeOutReached;
+	private Vector<Float> vector;
+	
+	private ZoomButton zbIn;
+	private ZoomButton zbOut;
+	private SideralisView myView;
+	private SideralisViewThread myViewThread;
+	private Animation animationFadeIn,animationFadeOut;
+	
+	class TimeOut extends TimerTask {
+
+		@Override
+		public void run() {
+//			zbIn.startAnimation(animationFadeOut);
+//			zbOut.startAnimation(animationFadeOut);
+			timeOutReached = true;
+			Log.d("Sideralis","TimeOut reached");			
+		}
+		
+	}
 	
 	/** Called when the activity is first created. */
 	@Override
@@ -72,6 +109,18 @@ public class Sideralis extends Activity {
         
 		new Thread(mySky).start();
 		
+		zbIn = (ZoomButton) findViewById(R.id.zoomIn);
+		zbOut = (ZoomButton) findViewById(R.id.zoomOut);
+		myView = (SideralisView) findViewById(R.id.mySideralisView);
+		myView.setOnClickListener(this);
+		myView.setOnTouchListener(this);
+		zbIn.setOnClickListener(this);
+		zbOut.setOnClickListener(this);
+		animationFadeIn = AnimationUtils.loadAnimation(this, R.anim.fadein);		
+		animationFadeOut = AnimationUtils.loadAnimation(this, R.anim.fadeout);
+		timeOut = null;
+		timeOutReached = true;
+		myViewThread = myView.getThread();
 	}
 
 	/*
@@ -293,11 +342,82 @@ public class Sideralis extends Activity {
 	}
 
 	/**
-	 * @param mySky
-	 *            the mySky to set
+	 * @param mySky the mySky to set
 	 */
 	public void setMySky(Sky mySky) {
 		this.mySky = mySky;
 	}
 
+	@Override
+	public void onClick(View v) {
+		if (v == myView) {
+			if (zbIn.getVisibility() == View.VISIBLE) {
+				zbIn.startAnimation(animationFadeOut);
+				zbOut.startAnimation(animationFadeOut);
+				zbIn.setVisibility(View.INVISIBLE);
+				zbOut.setVisibility(View.INVISIBLE);
+			} else {
+				zbIn.startAnimation(animationFadeIn);
+				zbOut.startAnimation(animationFadeIn);
+				zbIn.setVisibility(View.VISIBLE);
+				zbOut.setVisibility(View.VISIBLE);	
+			}
+//			if (timeOutReached) {
+////				zbIn.startAnimation(animationFadeIn);
+////				zbOut.startAnimation(animationFadeIn);
+//				zbIn.setVisibility(View.VISIBLE);
+//				zbOut.setVisibility(View.VISIBLE);	
+//				timeOutReached = false;
+//				if (timeOut != null)
+//					timeOut.cancel();
+//				timeOut = null;
+//				timeOut = new Timer();
+//				timeOut.schedule(new TimeOut(), 2000);
+//				Log.d("Sideralis","TimeOut Started after end");
+//			} else {
+//				if (timeOut != null)
+//					timeOut.cancel();
+//				timeOut = null;
+//				timeOut = new Timer();
+//				timeOut.schedule(new TimeOut(), 2000);
+//				Log.d("Sideralis","TimeOut Started before end");
+//			}
+		} else if (v == zbIn) {
+			myViewThread.zoomIn();
+		} else if (v == zbOut) {
+			myViewThread.zoomOut();
+		}
+	}
+
+	@Override
+	public boolean onTouch(View v, MotionEvent event) {
+		if (v == myView) {
+			int action = event.getAction();
+			switch (action) {
+			case MotionEvent.ACTION_DOWN:
+				vector = new Vector<Float>();
+				vector.add(event.getX());
+				vector.add(event.getY());
+				break;
+			case MotionEvent.ACTION_UP:
+				vector.add(event.getX());
+				vector.add(event.getY());
+				myViewThread.setVector(vector);
+				break;
+			case MotionEvent.ACTION_MOVE:
+				int historySize = event.getHistorySize();
+				for (int i = 0; i<historySize;i++) {
+//					long time = event.getHistoricalEventTime(i);
+					float x = event.getHistoricalX(i);
+					float y = event.getHistoricalY(i);
+					vector.add(x);
+					vector.add(y);
+//					float size = event.getHistoricalSize(i);
+//					Log.d("Sideralis","-"+i+": "+x+" "+y+" "+size+" "+time);
+				}
+				break;
+			}
+		}
+		return false;
+	}
 }
